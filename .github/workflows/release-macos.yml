@@ -28,6 +28,14 @@ jobs:
         with:
           ref: ${{ env.TAG }}
 
+      - name: Hide fork tag from version detection
+        run: |
+          # Ghostty's build panics on tags that are not exactly vX.Y.Z, and
+          # this fork uses tags like v1.3.2-rtl.1. Remove the local tag so the
+          # build treats the commit as a dev build.
+          git tag -d "$TAG" || true
+          git describe --exact-match --tags 2>&1 || echo "no exact tag (expected)"
+
       - name: Select latest Xcode 26 if available
         run: |
           if ls -d /Applications/Xcode_26*.app >/dev/null 2>&1; then
