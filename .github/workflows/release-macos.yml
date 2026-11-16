@@ -56,6 +56,13 @@ jobs:
           zig version
           zig build -Doptimize=ReleaseFast -Dfribidi=true
 
+      - name: Debug xcodebuild failure
+        if: failure()
+        run: |
+          find macos/build -maxdepth 3 -name "*.app" -print 2>/dev/null || true
+          cd macos
+          xcodebuild -target Ghostty -configuration ReleaseLocal 2>&1 | tail -150
+
       - name: Verify and package
         run: |
           # ReleaseFast maps to the Xcode ReleaseLocal configuration.
