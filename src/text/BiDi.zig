@@ -128,7 +128,11 @@ pub fn analyzeBidiCodepoints(
         bracket_types.ptr,
     );
 
-    var paragraph_dir: c.FriBidiParType = c.FRIBIDI_PAR_LTR;
+    // Let FriBidi resolve the paragraph direction from the first strong
+    // character (UBA P2/P3). Hardcoding LTR made Arabic-first lines use
+    // LTR paragraph order, so full sentences with Arabic + English were
+    // laid out as left-to-right blocks instead of RTL paragraphs.
+    var paragraph_dir: c.FriBidiParType = c.FRIBIDI_PAR_ON;
     _ = c.fribidi_get_par_embedding_levels_ex(
         bidi_types.ptr,
         bracket_types.ptr,

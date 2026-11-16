@@ -18,7 +18,9 @@ env:
 jobs:
   macos:
     name: Build macOS (arm64)
-    runs-on: macos-15
+    # Icon Composer (.icon) assets require the macOS 26 SDK/host tooling that
+    # ships with the macOS 26 runner image.
+    runs-on: macos-26
     concurrency:
       group: macos-release-${{ github.event.release.tag_name || inputs.tag }}
       cancel-in-progress: false

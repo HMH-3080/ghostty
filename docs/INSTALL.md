@@ -19,8 +19,8 @@ Requirements: GTK4, libadwaita, FriBidi and their runtime dependencies
 (test done on Arch Linux). The installer copies everything to `/usr/local`.
 
 ```sh
-tar --zstd -xf ghostty-1.3.2-rtl.1-linux-x86_64.tar.zst
-cd ghostty-1.3.2-rtl.1-linux-x86_64
+tar --zstd -xf ghostty-1.3.2-rtl.2-linux-x86_64.tar.zst
+cd ghostty-1.3.2-rtl.2-linux-x86_64
 sudo bash install-system.sh "$PWD"
 ```
 

@@ -2830,6 +2830,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 else
                     .{};
 
+                // Visual column for this logical cell. RTL rows are reordered
+                // by BiDi; decorations and glyphs must be drawn at the visual
+                // position, while cell metadata (colors, width) stays tied to
+                // the logical cell.
+                const visual_x: usize = if (logical_to_visual) |map| map[x] else x;
+
                 // True if this cell is selected
                 const selected: enum {
                     false,
@@ -3033,7 +3039,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 // This improves readability when a colored underline is used
                 // which intersects parts of the text (descenders).
                 if (underline != .none) self.addUnderline(
-                    @intCast(x),
+                    @intCast(visual_x),
                     @intCast(y),
                     underline,
                     style.underlineColor(&state.colors.palette) orelse fg,
@@ -3041,11 +3047,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 ) catch |err| {
                     log.warn(
                         "error adding underline to cell, will be invalid x={} y={}, err={}",
-                        .{ x, y, err },
+                        .{ visual_x, y, err },
                     );
                 };
 
-                if (style.flags.overline) self.addOverline(@intCast(x), @intCast(y), fg, alpha) catch |err| {
+                if (style.flags.overline) self.addOverline(@intCast(visual_x), @intCast(y), fg, alpha) catch |err| {
                     log.warn(
                         "error adding overline to cell, will be invalid x={} y={}, err={}",
                         .{ x, y, err },
@@ -3118,6 +3124,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     }) {
                         const render_x = if (logical_to_visual) |map| map[x] else (if (is_rtl) state.cols - 1 - x else x);
                         self.addGlyph(
+                            @intCast(x),
                             @intCast(render_x),
                             @intCast(y),
                             state.cols,
@@ -3137,14 +3144,14 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
                 // Finally, draw a strikethrough if necessary.
                 if (style.flags.strikethrough) self.addStrikethrough(
-                    @intCast(x),
+                    @intCast(visual_x),
                     @intCast(y),
                     fg,
                     alpha,
                 ) catch |err| {
                     log.warn(
                         "error adding strikethrough to cell, will be invalid x={} y={}, err={}",
-                        .{ x, y, err },
+                        .{ visual_x, y, err },
                     );
                 };
             }
@@ -3256,6 +3263,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         // Add a glyph to the specified cell.
         fn addGlyph(
             self: *Self,
+            logical_x: terminal.size.CellCountInt,
             x: terminal.size.CellCountInt,
             y: terminal.size.CellCountInt,
             cols: usize,
@@ -3265,7 +3273,9 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             color: terminal.color.RGB,
             alpha: u8,
         ) !void {
-            const cell = cell_raws[x];
+            // Cell metadata (codepoint, width) belongs to the logical cell,
+            // while the grid position may be reordered by BiDi.
+            const cell = cell_raws[logical_x];
             const cp = cell.codepoint();
 
             // Render
@@ -3287,7 +3297,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                         } else .none,
                     .constraint_width = constraintWidth(
                         cell_raws,
-                        x,
+                        logical_x,
                         cols,
                     ),
                 },
