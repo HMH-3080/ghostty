@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing release tag (e.g. v1.3.2-rtl.1)"
+        description: "Existing release tag (e.g. v1.3.2-rtl.2)"
         required: true
 
 permissions:
@@ -18,9 +18,9 @@ env:
 jobs:
   macos:
     name: Build macOS (arm64)
-    # Icon Composer (.icon) assets require the macOS 26 SDK/host tooling that
-    # ships with the macOS 26 runner image.
-    runs-on: macos-26
+    # Icon Composer (.icon) assets require the macOS 26 toolchain, and this
+    # asset is an Apple Silicon build.
+    runs-on: macos-26-arm64
     concurrency:
       group: macos-release-${{ github.event.release.tag_name || inputs.tag }}
       cancel-in-progress: false
@@ -33,7 +33,7 @@ jobs:
       - name: Hide fork tag from version detection
         run: |
           # Ghostty's build panics on tags that are not exactly vX.Y.Z, and
-          # this fork uses tags like v1.3.2-rtl.1. Remove the local tag so the
+          # this fork uses tags like v1.3.2-rtl.2. Remove the local tag so the
           # build treats the commit as a dev build.
           git tag -d "$TAG" || true
           git describe --exact-match --tags 2>&1 || echo "no exact tag (expected)"
@@ -58,11 +58,12 @@ jobs:
 
       - name: Verify and package
         run: |
-          test -d macos/build/Release/Ghostty.app
+          # ReleaseFast maps to the Xcode ReleaseLocal configuration.
+          test -d macos/build/ReleaseLocal/Ghostty.app
           # Ad-hoc signature so the app runs locally without a developer cert.
-          codesign --force --deep -s - macos/build/Release/Ghostty.app || true
+          codesign --force --deep -s - macos/build/ReleaseLocal/Ghostty.app || true
           ditto -c -k --sequesterRsrc --keepParent \
-            macos/build/Release/Ghostty.app \
+            macos/build/ReleaseLocal/Ghostty.app \
             "Ghostty-rtl-${TAG}-macos-arm64.zip"
           shasum -a 256 "Ghostty-rtl-${TAG}-macos-arm64.zip" > SHA256SUMS-macos.txt
           cat SHA256SUMS-macos.txt

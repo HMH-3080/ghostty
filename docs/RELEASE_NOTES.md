@@ -19,8 +19,11 @@ Based on [commandlinetips/ghostty](https://github.com/commandlinetips/ghostty)
 - **Right alignment for RTL paragraphs**, like other bidi-aware terminals.
 - **Decorations follow the visual position**: underline, overline and
   strikethrough are drawn under the reordered glyphs.
-- **macOS CI** now uses the `macos-26` runner because the Icon Composer
-  (`.icon`) asset needs the macOS 26 host toolchain.
+- **Installer path rewrite**: the desktop entry, D-Bus and systemd units now
+  point to `/usr/local/bin/ghostty` even when installing from a repackaged
+  tarball (rtl.1 kept the builder's absolute path in those files).
+- **macOS CI** now uses the `macos-26-arm64` runner because the Icon Composer
+  (`.icon`) asset needs the macOS 26 toolchain.
 
 ## Highlights
 
@@ -96,8 +99,8 @@ TokyoNight palette and Windows Terminal-style keybindings are documented in
 
 ## Known limitations
 
-- Mouse selection across RTL text is still imperfect (cursor mapping improved
-  in rtl.2, but dragging across mixed runs can be off by a cell).
+- Mouse selection across RTL text is still imperfect: dragging across mixed
+  runs can be off by a cell.
 - Some Arabic diacritics (tashkeel) can detach from the base letter
   (e.g. the final `د` in `مُحَمَّد`). This is a shaping limitation of the
   fork, not of the font.

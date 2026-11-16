@@ -39,8 +39,11 @@ install -Dm755 "$BUILD_DIR/bin/ghostty" "$PREFIX/bin/ghostty"
 # dbus/systemd activation units, terminfo) and fix build-time absolute paths.
 cp -a "$BUILD_DIR/share/." "$PREFIX/share/"
 while IFS= read -r f; do
-  sed -i "s|$BUILD_DIR/bin/ghostty|$PREFIX/bin/ghostty|g" "$f"
-done < <(grep -rl "$BUILD_DIR/bin/ghostty" "$PREFIX/share" 2>/dev/null || true)
+  # The build bakes in the path of the binary it was built from, which is not
+  # necessarily the BUILD_DIR we are installing from (release tarballs are
+  # repackaged). Rewrite any absolute .../bin/ghostty path to the installed one.
+  sed -i -E "s|[^[:space:]\"'=]*/bin/ghostty|$PREFIX/bin/ghostty|g" "$f"
+done < <(grep -rl "/bin/ghostty" "$PREFIX/share" 2>/dev/null || true)
 
 # dbus-broker only reads service files at session start, so the freshly
 # installed D-Bus name is not activatable until the next login. Make the
