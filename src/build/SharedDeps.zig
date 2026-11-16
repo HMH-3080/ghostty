@@ -891,6 +891,9 @@ pub fn gtkNgDistResources(
         // Run our blueprint compiler across all of our blueprint files.
         const blueprint_exe = b.addExecutable(.{
             .name = "gtk_blueprint_compiler",
+            // Work around Zig 0.15's self-hosted linker choking on the
+            // `.sframe` relocations in modern glibc crt1.o (Arch/GCC 16).
+            .use_llvm = true,
             .root_module = b.createModule(.{
                 .root_source_file = b.path("src/apprt/gtk/build/blueprint.zig"),
                 .target = b.graph.host,

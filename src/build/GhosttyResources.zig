@@ -15,6 +15,9 @@ pub fn init(b: *std.Build, cfg: *const Config, deps: *const SharedDeps) !Ghostty
     // This is the exe used to generate some build data.
     const build_data_exe = b.addExecutable(.{
         .name = "ghostty-build-data",
+        // Work around Zig 0.15's self-hosted linker choking on the
+        // `.sframe` relocations in modern glibc crt1.o (Arch/GCC 16).
+        .use_llvm = true,
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main_build_data.zig"),
             .target = b.graph.host,
