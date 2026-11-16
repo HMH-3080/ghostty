@@ -15,6 +15,9 @@ Based on [commandlinetips/ghostty](https://github.com/commandlinetips/ghostty)
 - **Build fix for Zig 0.15.2 on modern glibc** (Arch/GCC 16):
   the host tools `gtk_blueprint_compiler` and `ghostty-build-data` are built
   with the LLVM linker to avoid the `crt1.o:.sframe` relocation failure.
+- **macOS/iOS build fix** — the CoreText shaper hooks now return error unions
+  like the shared `RunIterator` interface expects (`prepare`/`finalize`), so
+  the Apple targets compile with the RTL changes.
 - **Installer** — `install-system.sh` keeps exactly one Ghostty on the
   system, installs to `/usr/local`, and fixes desktop-icon launching under
   dbus-broker.
