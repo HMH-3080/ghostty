@@ -1,4 +1,10 @@
 <!-- LOGO -->
+> [!NOTE]
+> **Arabic/RTL fork.** This repo is based on
+> [commandlinetips/ghostty](https://github.com/commandlinetips/ghostty) and adds
+> Arabic/Hebrew RTL shaping via FriBidi, a Zig 0.15.2 linker fix for modern
+> glibc, and build/install scripts. See [FORK_NOTES.md](FORK_NOTES.md).
+
 <h1>
 <p align="center">
   <img src="https://github.com/user-attachments/assets/fe853809-ba8b-400b-83ab-a9a0da25be8a" alt="Logo" width="128">
