@@ -81,11 +81,14 @@ docs explain the WSL2 route.
 
 ## macOS notes
 
-- Runner: `macos-15` (arm64).
+- Runner: `macos-26-arm64` (Apple Silicon). `macos-26` is Intel; the Icon
+  Composer (`.icon`) asset also requires the macOS 26 toolchain.
 - Xcode 26 is selected automatically when present; the project requires the
   macOS 26 SDK and the Metal toolchain.
 - Zig 0.15 is installed from Homebrew (`zig@0.15`) because it contains the
   Xcode 26.4 linker workaround.
+- `-Doptimize=ReleaseFast` maps to the Xcode `ReleaseLocal` configuration, so
+  the bundle is at `macos/build/ReleaseLocal/Ghostty.app`.
 - The app is **ad-hoc signed** (`codesign -s -`). It is not notarized, so
   users must clear the quarantine attribute (documented).
 
