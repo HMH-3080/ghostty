@@ -4,6 +4,8 @@
 > [commandlinetips/ghostty](https://github.com/commandlinetips/ghostty) and adds
 > Arabic/Hebrew RTL shaping via FriBidi, a Zig 0.15.2 linker fix for modern
 > glibc, and build/install scripts. See [FORK_NOTES.md](FORK_NOTES.md).
+> Ready builds: [Releases](https://github.com/HMH-3080/ghostty/releases) ·
+> instructions: [docs/INSTALL.md](docs/INSTALL.md).
 
 <h1>
 <p align="center">

@@ -1,0 +1,67 @@
+name: Attach macOS build to release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (e.g. v1.3.2-rtl.1)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  macos:
+    name: Build macOS (arm64)
+    runs-on: macos-15
+    concurrency:
+      group: macos-release-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Select latest Xcode 26 if available
+        run: |
+          if ls -d /Applications/Xcode_26*.app >/dev/null 2>&1; then
+            sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)"
+          fi
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: |
+          brew install zig@0.15 fribidi
+          echo "$(brew --prefix zig@0.15)/bin" >> "$GITHUB_PATH"
+          "$(brew --prefix zig@0.15)/bin/zig" version
+
+      - name: Build Ghostty.app
+        run: |
+          zig version
+          zig build -Doptimize=ReleaseFast -Dfribidi=true
+
+      - name: Verify and package
+        run: |
+          test -d macos/build/Release/Ghostty.app
+          # Ad-hoc signature so the app runs locally without a developer cert.
+          codesign --force --deep -s - macos/build/Release/Ghostty.app || true
+          ditto -c -k --sequesterRsrc --keepParent \
+            macos/build/Release/Ghostty.app \
+            "Ghostty-rtl-${TAG}-macos-arm64.zip"
+          shasum -a 256 "Ghostty-rtl-${TAG}-macos-arm64.zip" > SHA256SUMS-macos.txt
+          cat SHA256SUMS-macos.txt
+
+      - name: Upload assets to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$TAG" \
+            "Ghostty-rtl-${TAG}-macos-arm64.zip" \
+            SHA256SUMS-macos.txt \
+            --clobber

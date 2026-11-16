@@ -47,6 +47,19 @@ Or simply:
 ./rebuild.sh
 ```
 
+## Releases
+
+Ready-made builds are attached to
+[GitHub Releases](https://github.com/HMH-3080/ghostty/releases):
+
+- Linux x86_64: `.tar.zst` + `install-system.sh`
+- macOS Apple Silicon: unsigned `.zip` app bundle (built in CI)
+- Windows: not supported by Ghostty; use WSL2 + WSLg
+  (see [docs/INSTALL.md](docs/INSTALL.md))
+
+Install instructions: [docs/INSTALL.md](docs/INSTALL.md).
+Release checklist: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md).
+
 ## Recommended configuration
 
 A monospaced font that covers Arabic well, with TokyoNight colors:
