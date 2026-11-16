@@ -91,7 +91,7 @@ macOS (Xcode 26 + macOS 26 SDK, Metal toolchain):
 ```sh
 brew install zig@0.15 fribidi
 zig build -Doptimize=ReleaseFast -Dfribidi=true
-# app bundle: macos/build/Release/Ghostty.app
+# app bundle: macos/build/ReleaseLocal/Ghostty.app
 ```
 
 Or use the wrapper that also installs on Linux:
