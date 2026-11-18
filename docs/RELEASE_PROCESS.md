@@ -4,7 +4,7 @@ This fork publishes GitHub releases with ready-to-run builds.
 
 ## Versioning
 
-Tags look like `v1.3.2-rtl.3`:
+Tags look like `v1.3.2-rtl.4`:
 
 - `1.3.2` — upstream Ghostty base version (`1.3.2-dev` in `build.zig.zon`);
 - `rtl.N` — fork release counter.
@@ -35,7 +35,7 @@ docs explain the WSL2 route.
 3. **Package the Linux asset:**
 
    ```sh
-   TAG=v1.3.2-rtl.3
+   TAG=v1.3.2-rtl.4
    STAGE="ghostty-1.3.2-rtl.1-linux-x86_64"
    rm -rf "/tmp/$STAGE" && mkdir -p "/tmp/$STAGE"
    cp -a zig-out/bin zig-out/share "/tmp/$STAGE/"

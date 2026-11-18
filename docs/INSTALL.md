@@ -25,8 +25,8 @@ Requirements: GTK4, libadwaita, FriBidi and their runtime dependencies
 > Mono` already contains Arabic glyphs and works out of the box.
 
 ```sh
-tar --zstd -xf ghostty-1.3.2-rtl.3-linux-x86_64.tar.zst
-cd ghostty-1.3.2-rtl.3-linux-x86_64
+tar --zstd -xf ghostty-1.3.2-rtl.4-linux-x86_64.tar.zst
+cd ghostty-1.3.2-rtl.4-linux-x86_64
 sudo bash install-system.sh "$PWD"
 ```
 
