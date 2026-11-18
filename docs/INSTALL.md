@@ -18,9 +18,15 @@ The releases are on
 Requirements: GTK4, libadwaita, FriBidi and their runtime dependencies
 (test done on Arch Linux). The installer copies everything to `/usr/local`.
 
+> [!NOTE]
+> Use a **monospaced** Arabic font. A proportional font such as
+> `IBM Plex Sans Arabic` forced with `font-codepoint-map` will look distorted
+> because the terminal grid has fixed cell widths. `CaskaydiaMono Nerd Font
+> Mono` already contains Arabic glyphs and works out of the box.
+
 ```sh
-tar --zstd -xf ghostty-1.3.2-rtl.2-linux-x86_64.tar.zst
-cd ghostty-1.3.2-rtl.2-linux-x86_64
+tar --zstd -xf ghostty-1.3.2-rtl.3-linux-x86_64.tar.zst
+cd ghostty-1.3.2-rtl.3-linux-x86_64
 sudo bash install-system.sh "$PWD"
 ```
 
