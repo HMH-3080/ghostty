@@ -2634,12 +2634,11 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             if (state.cols > 0) bidi: {
                 var has_complex = false;
                 for (cells_raw[0..cells_len]) |c| {
-                    if (c.content_tag == .codepoint) {
-                        const script = BiDi.detectScript(c.content.codepoint);
-                        if (BiDi.isComplexScript(script)) {
-                            has_complex = true;
-                            break;
-                        }
+                    if (!c.hasText()) continue;
+                    const script = BiDi.detectScript(c.codepoint());
+                    if (BiDi.isComplexScript(script)) {
+                        has_complex = true;
+                        break;
                     }
                 }
                 if (!has_complex) break :bidi;
@@ -2648,7 +2647,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 defer row_codepoints.deinit(self.alloc);
 
                 for (cells_raw[0..cells_len]) |c| {
-                    row_codepoints.appendAssumeCapacity(if (c.content_tag == .codepoint) c.content.codepoint else 0x20);
+                    row_codepoints.appendAssumeCapacity(if (c.hasText()) c.codepoint() else 0x20);
                 }
 
                 var analysis = BiDi.analyzeBidiCodepoints(self.alloc, row_codepoints.items) catch |err| {

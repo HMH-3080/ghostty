@@ -36,6 +36,11 @@ pub const Options = struct {
     /// If null, motion deduplication state is not tracked.
     last_cell: ?*?point.Coordinate = null,
 
+    /// Override for the reported cell X coordinate. Used for BiDi-reordered
+    /// rows so mouse events use the logical column, not the visual column
+    /// where the pointer is rendered.
+    x_override: ?usize = null,
+
     /// Initialize from terminal and renderer state. The caller may still
     /// set any_button_pressed and last_cell on the returned value.
     pub fn fromTerminal(
@@ -101,7 +106,8 @@ pub fn encode(
         if (!opts.any_button_pressed) return;
     }
 
-    const cell = posToCell(event.pos, opts.size);
+    var cell = posToCell(event.pos, opts.size);
+    if (opts.x_override) |x| cell.x = @intCast(x);
 
     // We only send motion events when the cell changed unless
     // we're tracking raw pixels.

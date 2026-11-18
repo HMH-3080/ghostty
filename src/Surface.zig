@@ -29,6 +29,7 @@ const termio = @import("termio.zig");
 const font = @import("font/main.zig");
 const Command = @import("Command.zig");
 const terminal = @import("terminal/main.zig");
+const BiDi = @import("text/BiDi.zig");
 const configpkg = @import("config.zig");
 const Duration = configpkg.Config.Duration;
 const input = @import("input.zig");
@@ -3620,6 +3621,34 @@ fn isMouseReporting(self: *const Surface) bool {
         self.io.terminal.flags.mouse_event != .none;
 }
 
+/// Convert a visual cell column to the logical column for BiDi-reordered
+/// rows. Mouse coordinates arrive in visual space; terminal applications and
+/// text selection expect logical columns.
+fn bidiLogicalX(self: *const Surface, pos: apprt.CursorPos) ?usize {
+    const vp = self.posToViewport(pos.x, pos.y);
+    const screen: *const terminal.Screen = self.io.terminal.screens.active;
+    const pin = screen.pages.pin(.{ .viewport = vp }) orelse return null;
+    const cells = pin.cells(.all);
+    if (cells.len == 0) return null;
+
+    var codepoints = std.ArrayList(u32).initCapacity(self.alloc, cells.len) catch return null;
+    defer codepoints.deinit(self.alloc);
+    for (cells) |c| {
+        codepoints.appendAssumeCapacity(if (c.hasText()) c.codepoint() else 0x20);
+    }
+
+    var analysis = BiDi.analyzeBidiCodepoints(self.alloc, codepoints.items) catch return null;
+    defer analysis.deinit();
+    const l2v = BiDi.reorderVisualCodepoints(self.alloc, codepoints.items, &analysis) catch return null;
+    defer self.alloc.free(l2v);
+
+    const visual: u32 = vp.x;
+    for (l2v, 0..) |v, logical| {
+        if (v == visual) return logical;
+    }
+    return null;
+}
+
 fn mouseReport(
     self: *Surface,
     button: ?input.MouseButton,
@@ -3632,7 +3661,7 @@ fn mouseReport(
     assert(self.io.terminal.flags.mouse_event != .none);
 
     // Build our encoding options.
-    const encoding_opts: input.mouse_encode.Options = opts: {
+    var encoding_opts: input.mouse_encode.Options = opts: {
         // Terminal and size state.
         var opts: input.mouse_encode.Options = .fromTerminal(
             &self.io.terminal,
@@ -3654,6 +3683,9 @@ fn mouseReport(
 
         break :opts opts;
     };
+
+    // Report the logical column for BiDi-reordered rows.
+    if (self.bidiLogicalX(pos)) |logical_x| encoding_opts.x_override = logical_x;
 
     var data: termio.Message.WriteReq.Small.Array = undefined;
     var writer: std.Io.Writer = .fixed(&data);
@@ -4537,8 +4569,11 @@ pub fn cursorPosCallback(
     // Update our modifiers if they changed
     if (mods) |v| self.modsChanged(v);
 
-    // The mouse position in the viewport
+    // The mouse position in the viewport. For BiDi-reordered rows the visual
+    // column must be translated to the logical column used by the terminal.
     const pos_vp = self.posToViewport(pos.x, pos.y);
+    var pos_vp_logical = pos_vp;
+    if (self.bidiLogicalX(pos)) |logical_x| pos_vp_logical.x = @intCast(logical_x);
 
     // We always reset the over link status because it will be reprocessed
     // below. But we need the old value to know if we need to undo mouse
@@ -4571,8 +4606,8 @@ pub fn cursorPosCallback(
 
         const screen: *terminal.Screen = self.renderer_state.terminal.screens.active;
         insp.mouse.last_point = screen.pages.pin(.{ .viewport = .{
-            .x = pos_vp.x,
-            .y = pos_vp.y,
+            .x = pos_vp_logical.x,
+            .y = pos_vp_logical.y,
         } });
         try self.queueRender();
     }
@@ -4589,13 +4624,13 @@ pub fn cursorPosCallback(
     // 2. mouse reporting is on and we are not reporting shift to the terminal
     if ((over_link or
         self.mouse.link_point == null or
-        (self.mouse.link_point != null and !self.mouse.link_point.?.eql(pos_vp))) and
+        (self.mouse.link_point != null and !self.mouse.link_point.?.eql(pos_vp_logical))) and
         (self.io.terminal.flags.mouse_event == .none or
             (self.mouse.mods.shift and !self.mouseShiftCapture(false))))
     {
         // If we were previously over a link, we always update. We do this so that if the text
         // changed underneath us, even if the mouse didn't move, we update the URL hints and state
-        try self.mouseRefreshLinks(pos, pos_vp, over_link);
+        try self.mouseRefreshLinks(pos, pos_vp_logical, over_link);
     }
 
     // Do a mouse report
@@ -4663,8 +4698,8 @@ pub fn cursorPosCallback(
         const screen: *terminal.Screen = t.screens.active;
         const pin = screen.pages.pin(.{
             .viewport = .{
-                .x = pos_vp.x,
-                .y = pos_vp.y,
+                .x = pos_vp_logical.x,
+                .y = pos_vp_logical.y,
             },
         }) orelse {
             if (comptime std.debug.runtime_safety) unreachable;
