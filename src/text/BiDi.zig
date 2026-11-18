@@ -238,7 +238,19 @@ pub fn reorderVisualCodepoints(
         return identityMap(allocator, codepoints.len);
     }
 
-    const suffix = codepoints[prefix_len..];
+    // When there is an LTR prefix, keep the trailing padding spaces fixed at
+    // the right edge and reorder only the text span. Otherwise the RTL text is
+    // pushed all the way to the right margin, leaving a large gap after the
+    // prefix. Rows without a prefix keep the usual RTL right alignment.
+    var suffix_end: usize = codepoints.len;
+    if (prefix_len > 0) {
+        var end = codepoints.len;
+        while (end > prefix_len and (codepoints[end - 1] == 0x20 or codepoints[end - 1] == 0)) end -= 1;
+        if (end > prefix_len) suffix_end = end;
+    }
+    if (suffix_end == prefix_len) return identityMap(allocator, codepoints.len);
+
+    const suffix = codepoints[prefix_len..suffix_end];
 
     const bidi_types = try allocator.alloc(c.FriBidiCharType, suffix.len);
     defer allocator.free(bidi_types);
@@ -288,6 +300,7 @@ pub fn reorderVisualCodepoints(
         logical_to_visual[prefix_len + @as(usize, @intCast(logical_index))] =
             @intCast(prefix_len + @as(usize, @intCast(visual_index)));
     }
+    for (suffix_end..codepoints.len) |i| logical_to_visual[i] = @intCast(i);
 
     return logical_to_visual;
 }
@@ -408,6 +421,28 @@ test "reorder: latin prefix stays left, arabic suffix is RTL" {
     try std.testing.expectEqual(@as(u32, 5), map[3]);
     try std.testing.expectEqual(@as(u32, 4), map[4]);
     try std.testing.expectEqual(@as(u32, 3), map[5]);
+}
+
+test "reorder: trailing padding stays right for prefixed rows" {
+    // "1: أنا   " — the spaces after the text must not push the Arabic
+    // sentence to the right margin.
+    const cps = try testCodepoints(std.testing.allocator, "1: \xd9\xa3\xd9\x86\xd8\xa7   ");
+    defer std.testing.allocator.free(cps);
+    var analysis = try analyzeBidiCodepoints(std.testing.allocator, cps);
+    defer analysis.deinit();
+
+    const map = try reorderVisualCodepoints(std.testing.allocator, cps, &analysis);
+    defer std.testing.allocator.free(map);
+
+    try std.testing.expectEqual(@as(u32, 0), map[0]);
+    try std.testing.expectEqual(@as(u32, 1), map[1]);
+    try std.testing.expectEqual(@as(u32, 2), map[2]);
+    try std.testing.expectEqual(@as(u32, 5), map[3]);
+    try std.testing.expectEqual(@as(u32, 4), map[4]);
+    try std.testing.expectEqual(@as(u32, 3), map[5]);
+    try std.testing.expectEqual(@as(u32, 6), map[6]);
+    try std.testing.expectEqual(@as(u32, 7), map[7]);
+    try std.testing.expectEqual(@as(u32, 8), map[8]);
 }
 
 test "reorder: ltr-only row is identity" {
