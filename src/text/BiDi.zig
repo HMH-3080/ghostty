@@ -225,29 +225,57 @@ pub fn reorderVisualCodepoints(
     }
     if (codepoints.len == 0) return identityMap(allocator, 0);
 
-    const bidi_types = try allocator.alloc(c.FriBidiCharType, codepoints.len);
+    // Keep any leading LTR prefix (line numbers, prompts, labels such as
+    // "CONTROL:") at the left edge. Everything after the first RTL character
+    // is analysed as a forced RTL paragraph so mixed Arabic/English sentences
+    // are always read right-to-left, even when they start with Latin text.
+    var prefix_len: usize = 0;
+    while (prefix_len < codepoints.len) : (prefix_len += 1) {
+        if (isStrongRtlCodepoint(codepoints[prefix_len]) orelse false) break;
+    }
+    if (prefix_len == codepoints.len) {
+        // No RTL character: an LTR row needs no visual reordering.
+        return identityMap(allocator, codepoints.len);
+    }
+
+    const suffix = codepoints[prefix_len..];
+
+    const bidi_types = try allocator.alloc(c.FriBidiCharType, suffix.len);
     defer allocator.free(bidi_types);
-    c.fribidi_get_bidi_types(codepoints.ptr, @intCast(codepoints.len), bidi_types.ptr);
+    c.fribidi_get_bidi_types(suffix.ptr, @intCast(suffix.len), bidi_types.ptr);
 
-    const levels = try allocator.alloc(c.FriBidiLevel, codepoints.len);
+    const bracket_types = try allocator.alloc(c.FriBidiBracketType, suffix.len);
+    defer allocator.free(bracket_types);
+    c.fribidi_get_bracket_types(
+        suffix.ptr,
+        @intCast(suffix.len),
+        bidi_types.ptr,
+        bracket_types.ptr,
+    );
+
+    const levels = try allocator.alloc(c.FriBidiLevel, suffix.len);
     defer allocator.free(levels);
-    for (analysis.levels, 0..) |level, i| levels[i] = @intCast(level);
 
-    const map = try allocator.alloc(c.FriBidiStrIndex, codepoints.len);
+    var paragraph_dir: c.FriBidiParType = c.FRIBIDI_PAR_RTL;
+    _ = c.fribidi_get_par_embedding_levels_ex(
+        bidi_types.ptr,
+        bracket_types.ptr,
+        @intCast(suffix.len),
+        &paragraph_dir,
+        levels.ptr,
+    );
+
+    // FriBidi writes map[visual] = logical; invert below for the renderer.
+    const map = try allocator.alloc(c.FriBidiStrIndex, suffix.len);
     defer allocator.free(map);
     for (map, 0..) |*entry, i| entry.* = @intCast(i);
-
-    const base_dir: c.FriBidiParType = if (analysis.paragraph_level % 2 == 1)
-        c.FRIBIDI_PAR_RTL
-    else
-        c.FRIBIDI_PAR_LTR;
 
     _ = c.fribidi_reorder_line(
         c.FRIBIDI_FLAGS_DEFAULT | c.FRIBIDI_FLAGS_ARABIC,
         bidi_types.ptr,
-        @intCast(codepoints.len),
+        @intCast(suffix.len),
         0,
-        base_dir,
+        c.FRIBIDI_PAR_RTL,
         levels.ptr,
         null,
         map.ptr,
@@ -255,8 +283,10 @@ pub fn reorderVisualCodepoints(
 
     const logical_to_visual = try allocator.alloc(u32, codepoints.len);
     errdefer allocator.free(logical_to_visual);
+    for (0..prefix_len) |i| logical_to_visual[i] = @intCast(i);
     for (map, 0..) |logical_index, visual_index| {
-        logical_to_visual[@intCast(logical_index)] = @intCast(visual_index);
+        logical_to_visual[prefix_len + @as(usize, @intCast(logical_index))] =
+            @intCast(prefix_len + @as(usize, @intCast(visual_index)));
     }
 
     return logical_to_visual;
@@ -350,4 +380,44 @@ test "analyze bidi: arabic text" {
 
     try std.testing.expectEqual(@as(Level, 1), result.paragraph_level);
     try std.testing.expectEqual(@as(usize, 5), result.levels.len);
+}
+
+fn testCodepoints(allocator: Allocator, text: []const u8) ![]u32 {
+    var list = std.ArrayList(u32).init(allocator);
+    errdefer list.deinit(allocator);
+    var view = try std.unicode.Utf8View.init(text);
+    var iter = view.iterator();
+    while (iter.nextCodepoint()) |cp| try list.append(allocator, cp);
+    return list.toOwnedSlice(allocator);
+}
+
+test "reorder: latin prefix stays left, arabic suffix is RTL" {
+    // "1: أنا" — the number and colon must stay at the left, the Arabic
+    // word is laid out right-to-left after the prefix.
+    const cps = try testCodepoints(std.testing.allocator, "1: \xd9\xa3\xd9\x86\xd8\xa7");
+    defer std.testing.allocator.free(cps);
+    var analysis = try analyzeBidiCodepoints(std.testing.allocator, cps);
+    defer analysis.deinit();
+
+    const map = try reorderVisualCodepoints(std.testing.allocator, cps, &analysis);
+    defer std.testing.allocator.free(map);
+
+    try std.testing.expectEqual(@as(u32, 0), map[0]);
+    try std.testing.expectEqual(@as(u32, 1), map[1]);
+    try std.testing.expectEqual(@as(u32, 2), map[2]);
+    try std.testing.expectEqual(@as(u32, 5), map[3]);
+    try std.testing.expectEqual(@as(u32, 4), map[4]);
+    try std.testing.expectEqual(@as(u32, 3), map[5]);
+}
+
+test "reorder: ltr-only row is identity" {
+    const cps = try testCodepoints(std.testing.allocator, "CONTROL: hello");
+    defer std.testing.allocator.free(cps);
+    var analysis = try analyzeBidiCodepoints(std.testing.allocator, cps);
+    defer analysis.deinit();
+
+    const map = try reorderVisualCodepoints(std.testing.allocator, cps, &analysis);
+    defer std.testing.allocator.free(map);
+
+    for (cps, 0..) |_, i| try std.testing.expectEqual(@as(u32, @intCast(i)), map[i]);
 }
